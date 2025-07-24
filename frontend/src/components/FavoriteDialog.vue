@@ -57,7 +57,7 @@
 <script setup>
 import { ref, computed, defineExpose, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
-
+import { callApi } from '@/utils/api'
 const dialogRef = ref(null)
 const accountList = ref([])
 const isEdit = ref(false)
@@ -76,10 +76,16 @@ const currentUserId = authStore.userId
 
 onMounted(async () => {
   if (currentUserId) {
-    const res = await fetch(`http://localhost:8080/api/accounts/${currentUserId}`)
-    accountList.value = await res.json()
+    const { success, message } = await callApi(`/api/accounts/${currentUserId}`)
+
+    if (success) {
+      accountList.value = JSON.parse(message)
+    } else {
+      alert('載入帳號清單失敗：' + message)
+    }
   }
 })
+
 
 const totalFee = computed(() => form.value.fee / 100 * (form.value.quantity * form.value.price))
 const totalAmount = computed(() => (form.value.price * form.value.quantity) + (form.value.fee / 100 * (form.value.quantity * form.value.price)) )
@@ -124,30 +130,24 @@ const confirm = async () => {
     price: form.value.price,
     fee: form.value.fee
   }
-  console.log(payload);
   const url = isEdit.value
-    ? "http://localhost:8080/api/likelist/update"
-    : "http://localhost:8080/api/likelist/add"
+  ? "/api/likelist/update"
+  : "/api/likelist/add"
 
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    })
+    try {
+    const { success, message } = await callApi(url, 'POST', payload)
 
-    const msg = await res.text()
-    if (res.ok) {
-      alert(isEdit.value ? '更新成功' : '加入成功')
-      emit(isEdit.value ? 'update' : 'confirm', payload)
-      window.location.reload()
-      close()
+    if (success) {
+        alert(isEdit.value ? '更新成功' : '加入成功')
+        emit(isEdit.value ? 'update' : 'confirm', payload)
+        window.location.reload()
+        close()
     } else {
-      alert((isEdit.value ? '更新' : '加入') + "失敗：" + msg)
+        alert((isEdit.value ? '更新' : '加入') + "失敗：" + message)
     }
-  } catch (e) {
+    } catch (e) {
     alert((isEdit.value ? '更新' : '加入') + "失敗：" + e.message)
-  }
+    }
 }
 
 defineExpose({ open, close })

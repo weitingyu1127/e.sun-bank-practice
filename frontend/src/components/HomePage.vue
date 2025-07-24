@@ -130,164 +130,11 @@
     <FavoriteDialog ref="dialogRef" :user-id="currentUserId" @confirm="handleConfirm" />
 </template>
 
-<!-- <script setup>
-import { ref, onMounted} from 'vue'
-import FavoriteDialog from './FavoriteDialog.vue'
-import { useAuthStore } from '@/stores/authStore'
-
-const products = ref([])
-const favorites = ref([])
-const dialogRef = ref(null)
-const newAccount = ref('')
-const user = ref({
-                id: '',
-                name: '',
-                email: '',
-                accounts: []
-            })
-onMounted(async () => {
-    const authStore = useAuthStore()
-    const currentUserId = authStore.userId
-
-    try {
-        const res = await fetch('http://localhost:8080/api/product/all')
-        const data = await res.json()
-
-        products.value = data.map(p => ({
-        ...p,
-        quantity: 1,
-        paymentAccount: '',
-        isNew: false
-        }))
-    } catch (err) {
-        alert('載入產品列表失敗：' + err.message)
-    }
-    if(currentUserId){
-        try {
-            try {
-                const resUser = await fetch(`http://localhost:8080/api/user/${currentUserId}`)
-                const dataUser = await resUser.json()
-                console.log("使用者資料：", dataUser)
-                user.value = dataUser
-            } catch (err) {
-                alert('載入個人資料失敗：' + err.message)
-            }
-
-            const resFav = await fetch(`http://localhost:8080/api/likelist/${currentUserId}`)
-            const dataFav = await resFav.json()
-            favorites.value = dataFav
-            } catch (err) {
-            alert('載入喜好清單失敗：' + err.message)
-        }
-    }
-})
-
-function addNewProduct() {
-  products.value.push({
-    name: '',
-    price: 0,
-    fee: 0,
-    quantity: 1,
-    isNew: true
-  })
-}
-
-async function saveProduct(product) {
-  if (!product.name || product.price < 0 || product.fee < 0) {
-    alert('請輸入正確的產品資訊');
-    return;
-  }
-
-  try {
-    const res = await fetch('http://localhost:8080/api/product/add', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: product.name,
-        price: product.price,
-        fee: product.fee
-      })
-    });
-
-    const text = await res.text();
-    if (!res.ok) {
-      throw new Error(text);
-    }
-
-    alert(text);
-    product.isNew = false;
-
-  } catch (err) {
-    alert('新增產品失敗：' + err.message);
-  }
-}
-function cancelProduct(index) {
-  products.value.splice(index, 1)
-}
-function openFavoriteDialog(product) {
-  dialogRef.value.open(product, false)
-}
-
-function handleConfirm(data) {
-  favorites.value.push(data)
-}
-
-async function deleteItem(name, sn) {
-  if (!sn) {
-    alert("資料缺少 SN，無法刪除")
-    return
-  }
-
-  if (confirm(`確定要刪除「${name}」嗎？`)) {
-    try {
-      const res = await fetch(`http://localhost:8080/api/likelist/${sn}`, {
-        method: 'DELETE'
-      })
-
-      const msg = await res.text()
-      if (res.ok) {
-        alert(msg)
-        window.location.reload();
-      } else {
-        alert("刪除失敗：" + msg)
-      }
-    } catch (e) {
-      alert("刪除失敗：" + e.message)
-    }
-  }
-}
-function editItem(index) {
-  const item = favorites.value[index]
-  dialogRef.value.open(item, true) 
-}
-async function addAccount(userId, newAccount) {
-
-    try {
-        const res = await fetch('http://localhost:8080/api/useraccount/add', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                userId: userId,
-                account: newAccount
-            })
-        })
-
-        const msg = await res.text()
-        if (res.ok) {
-            window.location.reload();
-            alert(msg)
-        } else {
-            alert('新增帳號失敗：' + msg)
-        }
-    } catch (e) {
-        alert('新增帳號錯誤：' + e.message)
-    }
-}
-</script> -->
 <script setup>
 import { ref, onMounted } from 'vue'
 import FavoriteDialog from './FavoriteDialog.vue'
 import { useAuthStore } from '@/stores/authStore'
+import { callApi } from '@/utils/api'
 
 const products = ref([])
 const favorites = ref([])
@@ -313,35 +160,39 @@ onMounted(async () => {
   const currentUserId = authStore.userId
 
   try {
-    const res = await fetch('http://localhost:8080/api/product/all')
-    const data = await res.json()
-    products.value = data.map(p => ({
-      ...p,
-      quantity: 1,
-      paymentAccount: '',
-      isNew: false
-    }))
+    const { success, message } = await callApi('/api/product/all')
+
+    if (success) {
+      const data = JSON.parse(message)
+      products.value = data.map(p => ({
+        ...p,
+        quantity: 1,
+        paymentAccount: '',
+        isNew: false
+      }))
+    } else {
+      alert('載入產品列表失敗：' + message)
+    }
+
+    if (currentUserId) {
+      const { success: successUser, message: msgUser } = await callApi(`/api/user/${currentUserId}`)
+      if (successUser) {
+        user.value = JSON.parse(msgUser)
+      } else {
+        alert('載入個人資料失敗：' + msgUser)
+      }
+
+      const { success: successFav, message: msgFav } = await callApi(`/api/likelist/${currentUserId}`)
+      if (successFav) {
+        const dataFav = JSON.parse(msgFav)
+        favorites.value = dataFav
+        originalFavorites.value = dataFav
+      } else {
+        alert('載入喜好清單失敗：' + msgFav)
+      }
+    }
   } catch (err) {
-    alert('載入產品列表失敗：' + err.message)
-  }
-
-  if (currentUserId) {
-    try {
-      const resUser = await fetch(`http://localhost:8080/api/user/${currentUserId}`)
-      const dataUser = await resUser.json()
-      user.value = dataUser
-    } catch (err) {
-      alert('載入個人資料失敗：' + err.message)
-    }
-
-    try {
-      const resFav = await fetch(`http://localhost:8080/api/likelist/${currentUserId}`)
-      const dataFav = await resFav.json()
-      favorites.value = dataFav
-      originalFavorites.value = dataFav
-    } catch (err) {
-      alert('載入喜好清單失敗：' + err.message)
-    }
+    alert('初始化失敗：' + err.message)
   }
 })
 
@@ -357,30 +208,24 @@ function addNewProduct() {
 
 async function saveProduct(product) {
   if (!product.name || product.price < 0 || product.fee < 0) {
-    alert('請輸入正確的產品資訊')
-    return
+    return alert('請輸入正確的產品資訊')
   }
 
   try {
-    const res = await fetch('http://localhost:8080/api/product/add', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: product.name,
-        price: product.price,
-        fee: product.fee
-      })
+    const { success, message } = await callApi('/api/product/add', 'POST', {
+      name: product.name,
+      price: product.price,
+      fee: product.fee
     })
 
-    const text = await res.text()
-    if (!res.ok) throw new Error(text)
+    alert(message)
+    if (success) product.isNew = false
 
-    alert(text)
-    product.isNew = false
   } catch (err) {
     alert('新增產品失敗：' + err.message)
   }
 }
+
 
 function cancelProduct(index) {
   products.value.splice(index, 1)
@@ -403,21 +248,17 @@ async function deleteItem(name, sn) {
 
   if (confirm(`確定要刪除「${name}」嗎？`)) {
     try {
-      const res = await fetch(`http://localhost:8080/api/likelist/${sn}`, {
-        method: 'DELETE'
-      })
-
-      const msg = await res.text()
-      if (res.ok) {
-        alert(msg)
+        const { success, message } = await callApi(`/api/likelist/${sn}`, 'DELETE')
+        if (success) {
+        alert(message)
         window.location.reload()
-      } else {
-        alert("刪除失敗：" + msg)
-      }
+        } else {
+        alert('刪除失敗：' + message)
+        }
     } catch (e) {
-      alert("刪除失敗：" + e.message)
+        alert('刪除失敗：' + e.message)
     }
-  }
+    }
 }
 
 function editItem(index) {
@@ -427,26 +268,22 @@ function editItem(index) {
 
 async function addAccount(userId, newAccount) {
   try {
-    const res = await fetch('http://localhost:8080/api/useraccount/add', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: userId,
-        account: newAccount
-      })
+    const { success, message } = await callApi('/api/useraccount/add', 'POST', {
+      userId,
+      account: newAccount
     })
 
-    const msg = await res.text()
-    if (res.ok) {
-      alert(msg)
+    if (success) {
+      alert(message)
       window.location.reload()
     } else {
-      alert('新增帳號失敗：' + msg)
+      alert('新增帳號失敗：' + message)
     }
   } catch (e) {
     alert('新增帳號錯誤：' + e.message)
   }
 }
+
 
 function filterFavorites() {
   const nameFilter = search.value.productName.toLowerCase().trim()
@@ -475,56 +312,56 @@ function resetSearch() {
 </script>
 
 <style scoped>
-.home-container {
-  display: flex;
-  gap: 20px;
-  padding: 20px;
-  align-items: flex-start;
-}
+    .home-container {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+    align-items: flex-start;
+    }
 
-.section {
-  flex: 1; /* 每塊平均分配寬度 */
-  min-width: 300px;
-}
-.tableTitle {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 30px;
-}
-th, td {
-  border: 1px solid #ddd;
-  padding: 8px;
-  text-align: center;
-}
-input {
-  width: 100%;
-  padding: 5px;
-}
-button {
-  padding: 5px 10px;
-  background-color: #42b983;
-  border: none;
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-}
-button:hover {
-  background-color: #369f6e;
-}
-.button-container{
+    .section {
+    flex: 1;
+    min-width: 300px;
+    }
+    .tableTitle {
     display: flex;
     justify-content: space-between;
-}
-.button-container button{
-    width: 45%;
-}
-.icon-edit, .icon-delete{
-    color: #42b983;
-}
+    align-items: center;
+    margin-bottom: 10px;
+    }
+    table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 30px;
+    }
+    th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+    }
+    input {
+    width: 100%;
+    padding: 5px;
+    }
+    button {
+    padding: 5px 10px;
+    background-color: #42b983;
+    border: none;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    }
+    button:hover {
+    background-color: #369f6e;
+    }
+    .button-container{
+        display: flex;
+        justify-content: space-between;
+    }
+    .button-container button{
+        width: 45%;
+    }
+    .icon-edit, .icon-delete{
+        color: #42b983;
+    }
 </style>

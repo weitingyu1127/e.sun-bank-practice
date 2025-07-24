@@ -29,6 +29,7 @@
 
 <script>
 import { useAuthStore } from '@/stores/authStore' 
+import { callApi } from '@/utils/api'
 
 export default {
   name: 'LoginPage',
@@ -51,28 +52,19 @@ export default {
       this.message = '';
     },
     async register() {
-        if (!this.registerAccount || !this.registerName || !this.registerEmail || !this.registerPaymentAccount) {
-            this.setMessage('請輸入完整資料', true);
-            return;
-        }
+      if (!this.registerAccount || !this.registerName || !this.registerEmail || !this.registerPaymentAccount) {
+        this.setMessage('請輸入完整資料', true);
+        return;
+      }
 
-        try {
-            const res = await fetch("http://localhost:8080/api/register", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                userid: this.registerAccount,
-                username: this.registerName,
-                email: this.registerEmail,
-                account: this.registerPaymentAccount
-            })
-            });
+      const { success, message } = await callApi('/api/register', 'POST', {
+        userid: this.registerAccount,
+        username: this.registerName,
+        email: this.registerEmail,
+        account: this.registerPaymentAccount
+      });
 
-            const text = await res.text();
-            this.setMessage(text, !res.ok);
-        } catch (e) {
-            this.setMessage("註冊失敗", true);
-        }
+      this.setMessage(message, !success);
     },
     async login() {
       if (!this.loginAccount) {
@@ -80,36 +72,25 @@ export default {
         return;
       }
 
-      try {
-        const res = await fetch("http://localhost:8080/api/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userid: this.loginAccount })
-        });
+      const { success, message } = await callApi('/api/login', 'POST', {
+        userid: this.loginAccount
+      });
 
-        const text = await res.text();
-
-        if (res.ok) {
-          const authStore = useAuthStore();
-          authStore.setUserId(this.loginAccount);
-          this.setMessage(text);
-          setTimeout(() => {
-            this.$router.push("/home");  
-          }, 1000);
-        } else {
-          this.setMessage(text, true);
-        }
-      } catch (e) {
-        this.setMessage("登入失敗", true);
+      if (success) {
+        const authStore = useAuthStore();
+        authStore.setUserId(this.loginAccount);
+        this.setMessage(message);
+        setTimeout(() => this.$router.push("/home"), 1000);
+      } else {
+        this.setMessage(message, true);
       }
     },
-
     setMessage(msg, isError = false) {
       this.message = msg;
       this.isError = isError;
     }
-  }
-};
+  },
+}
 </script>
 
 <style scoped>
